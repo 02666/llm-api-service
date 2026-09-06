@@ -10,3 +10,4 @@ diag.py
 diag2.py
 diag3.py
 tune_env.py
+diag_*.py
