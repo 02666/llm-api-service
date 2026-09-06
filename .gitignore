@@ -4,3 +4,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 文件目录.png
+exp_429.py
+exp_w4.py
+diag.py
+diag2.py
+diag3.py
+tune_env.py
