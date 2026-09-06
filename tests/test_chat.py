@@ -77,3 +77,33 @@ def test_stream_sse_format(monkeypatch):
     assert 'data: {"content": "你"}' in r.text
     assert 'data: {"content": "好"}' in r.text
     assert r.text.endswith("data: [DONE]\n\n")
+
+
+def test_rate_limit_returns_429(monkeypatch):
+    """限流生效：check 返回拒绝时，接口返回 429 并带 Retry-After 头。"""
+    async def fake_check(key):
+        return False, 42                      # 拒绝，让客户端等 42 秒
+
+    monkeypatch.setattr("app.dependencies.check_rate_limit", fake_check)
+    r = client.post("/v1/chat/completions", headers=HEADERS,
+                    json={"messages": [{"role": "user", "content": "hi"}]})
+    assert r.status_code == 429
+    assert r.headers["Retry-After"] == "42"
+    assert "频繁" in r.json()["detail"]
+
+
+def test_rate_limit_fail_open_without_redis(monkeypatch):
+    """fail-open：Redis 不可用时（check 内部降级放行）请求照常处理。"""
+    async def fake_check(key):
+        return True, 0                        # 模拟 Redis 挂了之后的放行决策
+
+    async def fake_complete(req):
+        return "OK"                           # 顺手 mock 掉 LLM，测试不花钱、可断言
+
+    monkeypatch.setattr("app.dependencies.check_rate_limit", fake_check)
+    monkeypatch.setattr("app.routers.chat.complete", fake_complete)
+    r = client.post("/v1/chat/completions", headers=HEADERS,
+                    json={"messages": [{"role": "user", "content": "hi"}]})
+    assert r.status_code == 200
+    assert r.json()["content"] == "OK"
+

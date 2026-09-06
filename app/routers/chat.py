@@ -2,7 +2,7 @@
 """/v1/chat/* 路由：只做编排（验货后的请求 → 调 LLM → 组响应），不含业务细节"""
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from app.dependencies import verify_api_key
+from app.dependencies import verify_key_and_rate_limit
 from app.llm import complete, stream_complete
 from app.config import get_settings
 from app.schemas import ChatRequest, ChatResponse
@@ -11,14 +11,14 @@ router = APIRouter(prefix="/v1/chat", tags=["chat"])
 
 
 @router.post("/completions", response_model=ChatResponse)
-async def chat_completions(req: ChatRequest, key: str = Depends(verify_api_key)):
+async def chat_completions(req: ChatRequest, key: str = Depends(verify_key_and_rate_limit)):
     settings = get_settings()
     content = await complete(req)
     return ChatResponse(model=req.model or settings.llm_model, content=content)
 
 
 @router.post("/stream")
-async def chat_stream(req: ChatRequest, key: str = Depends(verify_api_key)) -> StreamingResponse:
+async def chat_stream(req: ChatRequest, key: str = Depends(verify_key_and_rate_limit)) -> StreamingResponse:
     """SSE 流式接口：逐字转发模型输出。
 
     注意：鉴权（Depends）发生在流开始之前 —— 无 Key 的请求拿 401 走人，

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # 单次请求超时（秒）
     request_timeout: float = 60.0
 
+    # 限流（W3）：每个 API Key 每分钟最大请求数；<=0 表示不限制
+    rate_limit_per_minute: int = 10
+    redis_url: str = "redis://localhost:6379/0"
+
     @property
     def valid_keys(self):
         return {k.strip() for k in self.api_keys.split(",") if k.strip()}
