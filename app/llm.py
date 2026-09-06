@@ -6,11 +6,18 @@ import logging
 import time
 from typing import AsyncIterator
 
-from openai import AsyncOpenAI
+from fastapi import HTTPException
+from openai import AsyncOpenAI, RateLimitError
 from app.config import get_settings
 from app.schemas import ChatRequest
 
 logger = logging.getLogger("llm-api")
+
+
+def _upstream_guard(exc: Exception) -> HTTPException:
+    """把上游模型的故障翻译成对客户端友好的 503，而不是裸 500。"""
+    logger.error("上游模型调用失败：%s", exc)
+    return HTTPException(status_code=503, detail="上游模型服务繁忙或额度不足，请稍后再试")
 
 
 def get_client() -> AsyncOpenAI:
@@ -26,11 +33,14 @@ async def complete(req: ChatRequest) -> str:
     """非流式补全（W1）。流式版本见 W2 里程碑。"""
     settings = get_settings()
     client = get_client()
-    resp = await client.chat.completions.create(
-        model=req.model or settings.llm_model,
-        messages=[m.model_dump() for m in req.messages],
-        temperature=req.temperature,
-    )
+    try:
+        resp = await client.chat.completions.create(
+            model=req.model or settings.llm_model,
+            messages=[m.model_dump() for m in req.messages],
+            temperature=req.temperature,
+        )
+    except RateLimitError as exc:
+        raise _upstream_guard(exc) from exc
     return resp.choices[0].message.content or ""
 
 
@@ -43,12 +53,15 @@ async def stream_complete(req: ChatRequest) -> AsyncIterator[str]:
     settings = get_settings()
     client = get_client()
     # stream=True：SDK 返回一个异步迭代器，模型每生成一小段就推送一个 chunk
-    stream = await client.chat.completions.create(
-        model=req.model or settings.llm_model,
-        messages=[m.model_dump() for m in req.messages],
-        temperature=req.temperature,
-        stream=True,
-    )
+    try:
+        stream = await client.chat.completions.create(
+            model=req.model or settings.llm_model,
+            messages=[m.model_dump() for m in req.messages],
+            temperature=req.temperature,
+            stream=True,
+        )
+    except RateLimitError as exc:
+        raise _upstream_guard(exc) from exc
     start = time.perf_counter()
     pieces = 0
     try:
