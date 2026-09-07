@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Anthropic 协议的单次回复长度上限
     max_tokens: int = 1024
 
+    # 压测/离线开发开关：True 时 complete/stream 返回固定内容，不调上游
+    mock_llm: bool = False
+
     # 限流（W3）：每个 API Key 每分钟最大请求数；<=0 表示不限制
     rate_limit_per_minute: int = 10
     redis_url: str = "redis://localhost:6379/0"

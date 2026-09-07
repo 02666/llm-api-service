@@ -46,6 +46,8 @@ def get_client() -> AsyncAnthropic:
 async def complete(req: ChatRequest) -> str:
     """非流式补全。"""
     settings = get_settings()
+    if settings.mock_llm:
+        return "[mock] " + req.messages[-1].content
     client = get_client()
     system, msgs = _split_system(req)
     try:
@@ -64,6 +66,12 @@ async def complete(req: ChatRequest) -> str:
 async def stream_complete(req: ChatRequest) -> AsyncIterator[str]:
     """流式补全（SSE）：上游每吐一段就转发一段；客户端断开时记录并释放。"""
     settings = get_settings()
+    if settings.mock_llm:
+        for word in ("这", "是", "mock", "流式", "响应", "。"):
+            yield "data: %s\n\n" % json.dumps({"content": word}, ensure_ascii=False)
+            await asyncio.sleep(0.02)
+        yield "data: [DONE]\n\n"
+        return
     client = get_client()
     system, msgs = _split_system(req)
     start = time.perf_counter()
