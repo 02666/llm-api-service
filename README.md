@@ -65,6 +65,9 @@ llm-api-service/
 │   └── routers/chat.py  # /v1/chat/* 路由
 ├── tests/               # test_chat.py + test_ratelimit.py（fakeredis）
 ├── loadgen.py           # 自研压测器
+├── sweep.py             # 并发梯度扫测脚本（调 loadgen）
+└── experiments/         # 排障/验证实验脚本归档
+├── loadgen.py           # 自研压测器
 ├── Dockerfile / docker-compose.yml（api + redis）
 └── README.md
 ```

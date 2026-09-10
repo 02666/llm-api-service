@@ -52,6 +52,7 @@ async def complete(req: ChatRequest) -> str:
     system, msgs = _split_system(req)
     try:
         resp = await client.messages.create(
+            top_p=req.top_p,        # ← 两处各加这一行（注意缩进和前面参数对齐）
             model=req.model or settings.llm_model,
             system=system,
             messages=msgs,
@@ -78,6 +79,7 @@ async def stream_complete(req: ChatRequest) -> AsyncIterator[str]:
     pieces = 0
     try:
         async with client.messages.stream(
+            top_p=req.top_p,        # ← 两处各加这一行（注意缩进和前面参数对齐）
             model=req.model or settings.llm_model,
             system=system,
             messages=msgs,
